@@ -871,6 +871,184 @@ textarea:focus {
   font-weight: 760;
 }
 
+.trend-control-card,
+.trend-overview-card,
+.trend-chart-card,
+.stability-card,
+.trend-insight-card {
+  display: grid;
+  gap: 14px;
+}
+
+.trend-overview-card > div:first-child > span {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 780;
+}
+
+.trend-overview-grid,
+.trend-metric-grid,
+.stability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.trend-overview-grid > div,
+.trend-metric-card {
+  min-width: 0;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--card-soft);
+}
+
+.trend-overview-grid strong,
+.trend-overview-grid span,
+.trend-metric-card span,
+.trend-metric-card strong,
+.trend-metric-card small {
+  display: block;
+}
+
+.trend-overview-grid strong,
+.trend-metric-card strong {
+  color: var(--brand);
+  font-size: 23px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.trend-overview-grid span,
+.trend-metric-card span {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 760;
+}
+
+.trend-metric-card small {
+  margin-top: 9px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.trend-change.up {
+  color: var(--active);
+}
+
+.trend-change.down {
+  color: var(--danger);
+}
+
+.trend-change.flat,
+.trend-change.neutral {
+  color: var(--text-muted);
+}
+
+.trend-chart-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.sleep-bars {
+  display: grid;
+  grid-auto-columns: minmax(9px, 1fr);
+  grid-auto-flow: column;
+  gap: 9px;
+  align-items: end;
+  height: 168px;
+  padding: 10px 4px 0;
+}
+
+.sleep-bars.week-chart {
+  grid-auto-columns: minmax(28px, 1fr);
+  gap: 12px;
+}
+
+.sleep-bars.year-chart {
+  grid-auto-columns: minmax(18px, 1fr);
+  gap: 10px;
+}
+
+.sleep-bar-item {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 16px;
+  gap: 8px;
+  align-items: end;
+  height: 100%;
+  min-width: 0;
+}
+
+.sleep-bar {
+  display: block;
+  width: 100%;
+  min-height: 8px;
+  border-radius: 999px 999px 5px 5px;
+  background: var(--brand);
+}
+
+.sleep-bar-placeholder {
+  display: block;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--line-strong);
+  opacity: 0.22;
+}
+
+.sleep-bar-item small {
+  color: var(--text-weak);
+  font-size: 10.5px;
+  line-height: 1;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.workout-dots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12px, 1fr));
+  gap: 8px;
+}
+
+.workout-dot {
+  display: block;
+  aspect-ratio: 1;
+  min-width: 10px;
+  border-radius: 6px;
+  background: var(--line-strong);
+  opacity: 0.5;
+}
+
+.workout-dot.is-active {
+  background: var(--active);
+  opacity: 1;
+}
+
+.stability-card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.trend-insight-list {
+  display: grid;
+  gap: 10px;
+}
+
+.trend-insight-list p {
+  margin: 0;
+  padding: 12px 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--card-soft);
+  color: var(--text-main);
+  line-height: 1.5;
+}
+
 .selected-date-empty {
   display: grid;
   gap: 14px;

@@ -63,6 +63,45 @@ type HistoryPeriodInfo = {
   emptyText: string
 }
 
+type TrendMetric = {
+  label: string
+  value: string
+  change: string
+  tone: 'up' | 'down' | 'flat' | 'neutral'
+}
+
+type TrendDayPoint = {
+  date: string
+  dayLabel: string
+  monthIndex: number
+  sleepHours: number | null
+  hasRecord: boolean
+  hasWorkout: boolean
+}
+
+type SleepChartPoint = {
+  key: string
+  label: string
+  sleepHours: number | null
+  showLabel: boolean
+}
+
+type TrendStats = {
+  averageSleep: number | null
+  currentStreak: number
+  insights: string[]
+  longestStreak: number
+  metrics: TrendMetric[]
+  missedDays: number
+  period: HistoryPeriodInfo
+  recordDays: number
+  recordRate: number
+  sleepVariance: number | null
+  trendDays: TrendDayPoint[]
+  workoutDays: number
+  workoutRate: number
+}
+
 function getToday() {
   const now = new Date()
   const year = now.getFullYear()
@@ -415,33 +454,301 @@ function filterRecordsByPeriod(records: CheckinRecord[], period: HistoryPeriodIn
   })
 }
 
-function getMonthRecords(records: CheckinRecord[], monthDate: Date) {
-  const period = getHistoryPeriodInfo('month', monthDate)
+function getDaysInPeriod(period: HistoryPeriodInfo) {
+  const startDate = getDateObject(period.startDate)
+  const endDate = getDateObject(period.endDate)
+  const days: string[] = []
+  let cursorDate = startDate
 
-  return filterRecordsByPeriod(records, period)
+  while (cursorDate <= endDate) {
+    days.push(formatDate(cursorDate))
+    cursorDate = addDays(cursorDate, 1)
+  }
+
+  return days
 }
 
-function getMonthSummary(records: CheckinRecord[], monthDate: Date) {
-  const monthRecords = getMonthRecords(records, monthDate)
-  const sleepValues = monthRecords
+function getAverageSleep(records: CheckinRecord[]) {
+  const sleepValues = records
     .map((record) => record.sleepHours)
     .filter((value): value is number => typeof value === 'number')
-  const mealValues = monthRecords
-    .map((record) => record.meals)
+
+  if (sleepValues.length === 0) {
+    return null
+  }
+
+  return sleepValues.reduce((total, value) => total + value, 0) / sleepValues.length
+}
+
+function getSleepVariance(records: CheckinRecord[]) {
+  const sleepValues = records
+    .map((record) => record.sleepHours)
     .filter((value): value is number => typeof value === 'number')
-  const averageSleep =
-    sleepValues.length > 0
-      ? sleepValues.reduce((total, value) => total + value, 0) / sleepValues.length
-      : null
-  const totalMeals = mealValues.reduce((total, value) => total + value, 0)
+
+  if (sleepValues.length < 2) {
+    return null
+  }
+
+  return Math.max(...sleepValues) - Math.min(...sleepValues)
+}
+
+function getLongestStreakInDates(dates: string[]) {
+  let longestStreak = 0
+  let currentStreak = 0
+
+  dates.forEach((date) => {
+    if (date) {
+      currentStreak += 1
+      longestStreak = Math.max(longestStreak, currentStreak)
+    } else {
+      currentStreak = 0
+    }
+  })
+
+  return longestStreak
+}
+
+function getTrendMetricTone(delta: number | null) {
+  if (delta === null) {
+    return 'neutral'
+  }
+
+  if (delta > 0) {
+    return 'up'
+  }
+
+  if (delta < 0) {
+    return 'down'
+  }
+
+  return 'flat'
+}
+
+function formatTrendDelta(
+  delta: number | null,
+  unit: string,
+  options: { decimals?: number } = {},
+) {
+  if (delta === null) {
+    return '暂无对比'
+  }
+
+  if (Math.abs(delta) < 0.0001) {
+    return '持平'
+  }
+
+  const decimals = options.decimals ?? 0
+  const value = Number(Math.abs(delta).toFixed(decimals))
+
+  return `${delta > 0 ? '+' : '-'}${value}${unit}`
+}
+
+function getPeriodNoun(mode: HistoryMode) {
+  if (mode === 'week') {
+    return '本周'
+  }
+
+  if (mode === 'month') {
+    return '本月'
+  }
+
+  return '本年'
+}
+
+function getTrendStats(
+  records: CheckinRecord[],
+  mode: HistoryMode,
+  periodDate: Date,
+): TrendStats {
+  const period = getHistoryPeriodInfo(mode, periodDate)
+  const previousPeriod = getHistoryPeriodInfo(
+    mode,
+    shiftHistoryPeriod(mode, periodDate, -1),
+  )
+  const periodRecords = filterRecordsByPeriod(records, period)
+  const previousRecords = filterRecordsByPeriod(records, previousPeriod)
+  const recordsByDate = new Map(
+    periodRecords.map((record) => [normalizeDate(record.date), record] as const),
+  )
+  const days = getDaysInPeriod(period)
+  const recordDays = periodRecords.length
+  const workoutDays = periodRecords.filter((record) => record.cardio || record.strength)
+    .length
+  const averageSleep = getAverageSleep(periodRecords)
+  const previousAverageSleep = getAverageSleep(previousRecords)
+  const recordRate = days.length > 0 ? recordDays / days.length : 0
+  const workoutRate = days.length > 0 ? workoutDays / days.length : 0
+  const sleepVariance = getSleepVariance(periodRecords)
+  const periodNoun = getPeriodNoun(mode)
+  const trendDays = days.map((date) => {
+    const record = recordsByDate.get(date)
+    const [, month, day] = date.split('-')
+
+    return {
+      date,
+      dayLabel: `${Number(month)}/${Number(day)}`,
+      monthIndex: Number(month) - 1,
+      sleepHours: typeof record?.sleepHours === 'number' ? record.sleepHours : null,
+      hasRecord: Boolean(record),
+      hasWorkout: Boolean(record?.cardio || record?.strength),
+    }
+  })
+  const longestStreak = getLongestStreakInDates(
+    trendDays.map((day) => (day.hasRecord ? day.date : '')),
+  )
+  const previousRecordDays = previousRecords.length
+  const previousWorkoutDays = previousRecords.filter(
+    (record) => record.cardio || record.strength,
+  ).length
+  const recordDelta = previousRecords.length === 0 ? null : recordDays - previousRecordDays
+  const workoutDelta =
+    previousRecords.length === 0 ? null : workoutDays - previousWorkoutDays
+  const sleepDelta =
+    previousAverageSleep === null || averageSleep === null
+      ? null
+      : averageSleep - previousAverageSleep
+  const currentStreak = getCurrentStreak(records)
+  const insights = [
+    recordDelta === null
+      ? `${periodNoun}记录 ${recordDays} 天，继续积累后会有更清晰的对比。`
+      : recordDelta > 0
+        ? `${periodNoun}记录天数比上个周期多 ${recordDelta} 天。`
+        : recordDelta < 0
+          ? `${periodNoun}记录天数比上个周期少 ${Math.abs(recordDelta)} 天。`
+          : `${periodNoun}记录天数与上个周期持平。`,
+    sleepDelta === null
+      ? '睡眠数据还不够多，先保持记录节奏。'
+      : sleepDelta > 0
+        ? `平均睡眠比上个周期增加 ${Number(sleepDelta.toFixed(1))} 小时。`
+        : sleepDelta < 0
+          ? `平均睡眠比上个周期减少 ${Number(Math.abs(sleepDelta).toFixed(1))} 小时。`
+          : '平均睡眠与上个周期基本持平。',
+    workoutDelta === null
+      ? `${periodNoun}运动 ${workoutDays} 天。`
+      : workoutDelta > 0
+        ? `${periodNoun}运动天数比上个周期多 ${workoutDelta} 天。`
+        : workoutDelta < 0
+          ? `${periodNoun}运动频率比上个周期下降。`
+          : `${periodNoun}运动频率与上个周期持平。`,
+  ]
+
+  if (currentStreak > 0) {
+    insights.push(`当前已经连续记录 ${currentStreak} 天。`)
+  }
+
+  if (sleepVariance !== null && sleepVariance >= 2) {
+    insights.push(`${periodNoun}睡眠波动较大，可以继续观察。`)
+  }
 
   return {
-    checkinDays: monthRecords.length,
-    workoutDays: monthRecords.filter((record) => record.cardio || record.strength)
-      .length,
     averageSleep,
-    totalMeals,
+    currentStreak,
+    insights: insights.slice(0, 3),
+    longestStreak,
+    metrics: [
+      {
+        label: '记录天数',
+        value: `${recordDays} 天`,
+        change: formatTrendDelta(recordDelta, ' 天'),
+        tone: getTrendMetricTone(recordDelta),
+      },
+      {
+        label: '运动天数',
+        value: `${workoutDays} 天`,
+        change: formatTrendDelta(workoutDelta, ' 天'),
+        tone: getTrendMetricTone(workoutDelta),
+      },
+      {
+        label: '平均睡眠',
+        value: formatAverage(averageSleep, ' 小时'),
+        change: formatTrendDelta(sleepDelta, ' 小时', { decimals: 1 }),
+        tone: getTrendMetricTone(sleepDelta),
+      },
+      {
+        label: '连续记录',
+        value: `${currentStreak} 天`,
+        change: currentStreak > 0 ? '继续保持' : '从今天开始',
+        tone: currentStreak > 0 ? 'up' : 'neutral',
+      },
+    ],
+    missedDays: Math.max(days.length - recordDays, 0),
+    period,
+    recordDays,
+    recordRate,
+    sleepVariance,
+    trendDays,
+    workoutDays,
+    workoutRate,
   }
+}
+
+function getTrendSummaryText(stats: TrendStats) {
+  if (stats.recordRate >= 0.8 && stats.workoutRate >= 0.35) {
+    return '本周期记录稳定，运动频率也不错。'
+  }
+
+  if (stats.recordRate >= 0.8) {
+    return '本周期记录很稳定，继续保持。'
+  }
+
+  if (stats.missedDays > stats.recordDays) {
+    return '本周期数据正在积累中。'
+  }
+
+  if (stats.sleepVariance !== null && stats.sleepVariance >= 2) {
+    return '睡眠波动较大，可以继续观察。'
+  }
+
+  return '本周期状态正在积累，趋势会逐渐清晰。'
+}
+
+function getSleepChartPoints(mode: HistoryMode, days: TrendDayPoint[]) {
+  if (mode === 'year') {
+    return Array.from({ length: 12 }, (_, monthIndex): SleepChartPoint => {
+      const monthDays = days.filter((day) => day.monthIndex === monthIndex)
+      const sleepValues = monthDays
+        .map((day) => day.sleepHours)
+        .filter((value): value is number => value !== null)
+      const averageSleep =
+        sleepValues.length > 0
+          ? sleepValues.reduce((total, value) => total + value, 0) / sleepValues.length
+          : null
+
+      return {
+        key: `month-${monthIndex + 1}`,
+        label: `${monthIndex + 1}月`,
+        sleepHours: averageSleep,
+        showLabel: [0, 2, 5, 8, 11].includes(monthIndex),
+      }
+    })
+  }
+
+  if (mode === 'month') {
+    const lastIndex = Math.max(days.length - 1, 0)
+    const labelIndexes = new Set([
+      0,
+      Math.round(lastIndex * 0.25),
+      Math.round(lastIndex * 0.5),
+      Math.round(lastIndex * 0.75),
+      lastIndex,
+    ])
+
+    return days.map((day, index) => ({
+      key: day.date,
+      label: day.dayLabel,
+      sleepHours: day.sleepHours,
+      showLabel: labelIndexes.has(index),
+    }))
+  }
+
+  const weekdays = ['一', '二', '三', '四', '五', '六', '日']
+
+  return days.map((day, index) => ({
+    key: day.date,
+    label: weekdays[index] ?? day.dayLabel,
+    sleepHours: day.sleepHours,
+    showLabel: true,
+  }))
 }
 
 function formatAverage(value: number | null, suffix: string) {
@@ -518,6 +825,10 @@ function App() {
   const [historyPeriodDate, setHistoryPeriodDate] = useState(() =>
     getPeriodStart('month', getDateObject(getToday())),
   )
+  const [trendMode, setTrendMode] = useState<HistoryMode>('month')
+  const [trendPeriodDate, setTrendPeriodDate] = useState(() =>
+    getPeriodStart('month', getDateObject(getToday())),
+  )
   const [calendarMonth, setCalendarMonth] = useState(() =>
     getMonthStart(getDateObject(getToday())),
   )
@@ -576,11 +887,22 @@ function App() {
     () => recordsByDate.get(normalizeDate(calendarSelectedDate)),
     [recordsByDate, calendarSelectedDate],
   )
-  const trendMonthSummary = useMemo(
-    () => getMonthSummary(records, getMonthStart(getDateObject(getToday()))),
-    [records],
+  const clampedTrendPeriodDate = useMemo(
+    () => clampHistoryPeriodDate(trendMode, trendPeriodDate, records),
+    [trendMode, trendPeriodDate, records],
   )
-  const currentStreak = useMemo(() => getCurrentStreak(records), [records])
+  const trendStats = useMemo(
+    () => getTrendStats(records, trendMode, clampedTrendPeriodDate),
+    [records, trendMode, clampedTrendPeriodDate],
+  )
+  const canGoPreviousTrendPeriod = useMemo(
+    () => canShiftHistoryPeriod(trendMode, clampedTrendPeriodDate, records, -1),
+    [trendMode, clampedTrendPeriodDate, records],
+  )
+  const canGoNextTrendPeriod = useMemo(
+    () => canShiftHistoryPeriod(trendMode, clampedTrendPeriodDate, records, 1),
+    [trendMode, clampedTrendPeriodDate, records],
+  )
   const canGoPreviousCalendarMonth = useMemo(
     () => canShiftCalendarMonth(clampedCalendarMonth, records, -1),
     [clampedCalendarMonth, records],
@@ -640,6 +962,23 @@ function App() {
       clampHistoryPeriodDate(
         historyMode,
         shiftHistoryPeriod(historyMode, currentDate, offset),
+        records,
+      ),
+    )
+  }
+
+  function changeTrendMode(mode: HistoryMode) {
+    setTrendMode(mode)
+    setTrendPeriodDate((currentDate) =>
+      clampHistoryPeriodDate(mode, currentDate, records),
+    )
+  }
+
+  function shiftVisibleTrendPeriod(offset: number) {
+    setTrendPeriodDate((currentDate) =>
+      clampHistoryPeriodDate(
+        trendMode,
+        shiftHistoryPeriod(trendMode, currentDate, offset),
         records,
       ),
     )
@@ -855,7 +1194,14 @@ function App() {
           onToggleDetails={toggleRecordDetails}
         />
       ) : activeView === 'trends' ? (
-        <TrendsPage currentStreak={currentStreak} monthSummary={trendMonthSummary} />
+        <TrendsPage
+          canGoNext={canGoNextTrendPeriod}
+          canGoPrevious={canGoPreviousTrendPeriod}
+          mode={trendMode}
+          stats={trendStats}
+          onModeChange={changeTrendMode}
+          onPeriodShift={shiftVisibleTrendPeriod}
+        />
       ) : null}
     </AppShell>
   )
@@ -1329,7 +1675,7 @@ function SupplementEntryCard({
       <label className="field field-without-label">
         <textarea
           rows={6}
-          placeholder="写点今日随想吧"
+          placeholder="补充点额外信息或写点今日随想吧"
           value={form.extraNote}
           onChange={(event) => onUpdateField('extraNote', event.target.value)}
         />
@@ -2004,58 +2350,203 @@ function CalendarDayCell({
 }
 
 function TrendsPage({
-  currentStreak,
-  monthSummary,
+  canGoNext,
+  canGoPrevious,
+  mode,
+  stats,
+  onModeChange,
+  onPeriodShift,
 }: {
-  currentStreak: number
-  monthSummary: ReturnType<typeof getMonthSummary>
+  canGoNext: boolean
+  canGoPrevious: boolean
+  mode: HistoryMode
+  stats: TrendStats
+  onModeChange: (mode: HistoryMode) => void
+  onPeriodShift: (offset: number) => void
 }) {
   return (
     <div className="page-stack">
       <header className="page-header">
         <p className="eyebrow">Trends</p>
         <h1>趋势</h1>
-        <p>先用基础统计看长期变化，后续可以继续扩展睡眠和运动趋势。</p>
+        <p>查看近期状态、长期变化和记录稳定性。</p>
       </header>
 
-      <MonthSummaryCard currentStreak={currentStreak} summary={monthSummary} />
+      <section className="app-card trend-control-card">
+        <HistoryModeSwitcher mode={mode} onModeChange={onModeChange} />
+        <HistoryPeriodNavigator
+          canGoNext={canGoNext}
+          canGoPrevious={canGoPrevious}
+          period={stats.period}
+          onPeriodShift={onPeriodShift}
+        />
+      </section>
+
+      <TrendOverviewCard stats={stats} />
+      <TrendMetricGrid metrics={stats.metrics} />
+      <SleepTrendChart days={stats.trendDays} mode={mode} />
+      <WorkoutFrequencyChart days={stats.trendDays} />
+      <StabilityCard stats={stats} />
+      <TrendInsights insights={stats.insights} />
     </div>
   )
 }
 
-function MonthSummaryCard({
-  currentStreak,
-  summary,
-}: {
-  currentStreak?: number
-  summary: ReturnType<typeof getMonthSummary>
-}) {
+function TrendOverviewCard({ stats }: { stats: TrendStats }) {
   return (
-    <section className="app-card month-summary-card">
-      <div className="section-heading">
-        <div>
-          <p className="eyebrow">本月概览</p>
-          <h2>月度状态</h2>
-        </div>
+    <section className="app-card trend-overview-card">
+      <div>
+        <p className="eyebrow">总览</p>
+        <h2>{stats.period.label}</h2>
+        {stats.period.rangeLabel && <span>{stats.period.rangeLabel}</span>}
       </div>
 
-      <div className="month-summary-grid">
+      <div className="trend-overview-grid">
         <div>
-          <strong>{summary.checkinDays}</strong>
-          <span>打卡天数</span>
+          <strong>{stats.recordDays}</strong>
+          <span>记录天数</span>
         </div>
         <div>
-          <strong>{summary.workoutDays}</strong>
+          <strong>{stats.workoutDays}</strong>
           <span>运动天数</span>
         </div>
         <div>
-          <strong>{formatAverage(summary.averageSleep, ' 小时')}</strong>
+          <strong>{formatAverage(stats.averageSleep, ' 小时')}</strong>
           <span>平均睡眠</span>
         </div>
         <div>
-          <strong>{currentStreak ?? summary.totalMeals}</strong>
-          <span>{currentStreak === undefined ? '饮食次数' : '连续记录'}</span>
+          <strong>{stats.currentStreak}</strong>
+          <span>连续记录</span>
         </div>
+      </div>
+    </section>
+  )
+}
+
+function TrendMetricGrid({ metrics }: { metrics: TrendMetric[] }) {
+  return (
+    <section className="trend-metric-grid">
+      {metrics.map((metric) => (
+        <article className="trend-metric-card" key={metric.label}>
+          <span>{metric.label}</span>
+          <strong>{metric.value}</strong>
+          <small className={`trend-change ${metric.tone}`}>{metric.change}</small>
+        </article>
+      ))}
+    </section>
+  )
+}
+
+function SleepTrendChart({
+  days,
+  mode,
+}: {
+  days: TrendDayPoint[]
+  mode: HistoryMode
+}) {
+  const chartPoints = getSleepChartPoints(mode, days)
+  const sleepValues = chartPoints
+    .map((point) => point.sleepHours)
+    .filter((value): value is number => value !== null)
+  const maxSleep = Math.max(...sleepValues, 8)
+  const minWidth =
+    mode === 'year' ? 320 : mode === 'month' ? Math.max(days.length * 12, 360) : 280
+
+  return (
+    <section className="app-card trend-chart-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">睡眠趋势</p>
+          <h2>睡眠时长变化</h2>
+        </div>
+      </div>
+
+      <div className="trend-chart-scroll">
+        <div className={`sleep-bars ${mode}-chart`} style={{ minWidth: `${minWidth}px` }}>
+          {chartPoints.map((point) => {
+            const heightPercent =
+              point.sleepHours === null ? 0 : Math.max((point.sleepHours / maxSleep) * 100, 12)
+
+            return (
+              <div className="sleep-bar-item" key={point.key}>
+                {point.sleepHours === null ? (
+                  <span className="sleep-bar-placeholder" title={`${point.label} 未记录`} />
+                ) : (
+                  <span
+                    className="sleep-bar"
+                    title={`${point.label} ${Number(point.sleepHours.toFixed(1))} 小时`}
+                    style={{ height: `${heightPercent}%` }}
+                  />
+                )}
+                <small>{point.showLabel ? point.label : ''}</small>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function WorkoutFrequencyChart({ days }: { days: TrendDayPoint[] }) {
+  return (
+    <section className="app-card trend-chart-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">运动频率</p>
+          <h2>运动日分布</h2>
+        </div>
+      </div>
+
+      <div className="workout-dots">
+        {days.map((day) => (
+          <span
+            className={day.hasWorkout ? 'workout-dot is-active' : 'workout-dot'}
+            key={day.date}
+            title={`${day.date} ${day.hasWorkout ? '有运动' : '无运动'}`}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function StabilityCard({ stats }: { stats: TrendStats }) {
+  return (
+    <section className="app-card stability-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">稳定性</p>
+          <h2>记录节奏</h2>
+        </div>
+      </div>
+
+      <div className="stability-grid">
+        <DetailItem label="记录率" value={`${Math.round(stats.recordRate * 100)}%`} />
+        <DetailItem label="运动记录率" value={`${Math.round(stats.workoutRate * 100)}%`} />
+        <DetailItem label="漏记天数" value={`${stats.missedDays} 天`} />
+        <DetailItem label="最长连续" value={`${stats.longestStreak} 天`} />
+      </div>
+
+      <p>{getTrendSummaryText(stats)}</p>
+    </section>
+  )
+}
+
+function TrendInsights({ insights }: { insights: string[] }) {
+  return (
+    <section className="app-card trend-insight-card">
+      <div className="section-heading">
+        <div>
+          <p className="eyebrow">洞察</p>
+          <h2>趋势提示</h2>
+        </div>
+      </div>
+
+      <div className="trend-insight-list">
+        {insights.map((insight) => (
+          <p key={insight}>{insight}</p>
+        ))}
       </div>
     </section>
   )
