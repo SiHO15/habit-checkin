@@ -2310,6 +2310,8 @@ function MonthCalendarGrid({
           )
         })}
       </div>
+
+      <CalendarLegend />
     </div>
   )
 }
@@ -2693,16 +2695,7 @@ function CalendarDialog({
           })}
         </div>
 
-        <div className="calendar-legend" aria-label="日历颜色说明">
-          <span>
-            <i className="legend-dot checked"></i>
-            已打卡
-          </span>
-          <span>
-            <i className="legend-dot workout"></i>
-            有运动
-          </span>
-        </div>
+        <CalendarLegend />
 
         <div className="calendar-actions">
           <button className="ghost-button" type="button" onClick={onCancel}>
@@ -2713,6 +2706,21 @@ function CalendarDialog({
           </button>
         </div>
       </section>
+    </div>
+  )
+}
+
+function CalendarLegend() {
+  return (
+    <div className="calendar-legend" aria-label="日历颜色说明">
+      <span>
+        <i className="legend-dot checked"></i>
+        已打卡
+      </span>
+      <span>
+        <i className="legend-dot workout"></i>
+        有运动
+      </span>
     </div>
   )
 }

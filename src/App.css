@@ -1,49 +1,51 @@
 :root {
-  --page-bg: #202329;
-  --card-bg: #2b2f36;
-  --card-soft: #343943;
+  --page-bg: #1f2229;
+  --card-bg: #2a2e37;
+  --card-soft: #323743;
   --panel-deep: #191b20;
-  --input-bg: #262a31;
-  --control-bg: #2b2f36;
-  --text-main: #d8dde5;
-  --text-muted: #8e96a3;
-  --text-weak: #6f7682;
-  --line: #454b55;
+  --input-bg: #242832;
+  --control-bg: #2a2e37;
+  --text-main: #e7eaf0;
+  --text-muted: #a8afbc;
+  --text-weak: #737b89;
+  --line: rgba(255, 255, 255, 0.1);
   --line-weak: rgba(255, 255, 255, 0.08);
-  --line-strong: #5b626e;
-  --brand: #ff5c9a;
-  --brand-deep: #ff8ab7;
-  --brand-soft: rgba(255, 92, 154, 0.16);
-  --brand-border: rgba(255, 92, 154, 0.45);
-  --brand-on: #202329;
-  --active: #ffd84d;
-  --accent-cyan: #25d0c3;
-  --workout: #ffd84d;
-  --checked-day-bg: rgba(255, 92, 154, 0.2);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --brand: #e879a7;
+  --brand-deep: #f08bb6;
+  --brand-soft: rgba(232, 121, 167, 0.16);
+  --brand-border: rgba(232, 121, 167, 0.42);
+  --brand-on: #1f2229;
+  --active: #b99ae6;
+  --accent-cyan: #b99ae6;
+  --workout: #b99ae6;
+  --checked-day-bg: rgba(232, 121, 167, 0.22);
   --checked-day-text: #f2d6e4;
-  --workout-day-bg: #ffd84d;
-  --workout-day-text: #202329;
-  --today-day-bg: #ff5c9a;
-  --today-day-text: #202329;
-  --today-border: #ff5c9a;
-  --selected-day-small: #202329;
-  --muted-day-text: #6f7682;
+  --checked-day-border: rgba(232, 121, 167, 0.35);
+  --workout-day-bg: rgba(185, 154, 230, 0.28);
+  --workout-day-text: #eae2fa;
+  --workout-day-border: rgba(185, 154, 230, 0.42);
+  --today-day-bg: #e879a7;
+  --today-day-text: #1f2229;
+  --today-border: #e879a7;
+  --selected-day-small: #1f2229;
+  --muted-day-text: #5c6472;
   --calendar-hover-bg: rgba(255, 255, 255, 0.06);
-  --legend-checked-border: rgba(255, 92, 154, 0.45);
-  --legend-workout-border: rgba(255, 216, 77, 0.62);
-  --danger: #ff6b7a;
-  --danger-soft: rgba(255, 107, 122, 0.14);
-  --danger-border: rgba(255, 107, 122, 0.42);
-  --notice-bg: rgba(255, 92, 154, 0.13);
-  --notice-border: rgba(255, 92, 154, 0.38);
-  --notice-text: #ffd4e5;
-  --hover-bg: #343943;
-  --disabled-bg: #262a31;
-  --disabled-text: #626b78;
-  --bottom-nav-bg: rgba(43, 47, 54, 0.94);
+  --legend-checked-border: rgba(232, 121, 167, 0.35);
+  --legend-workout-border: rgba(185, 154, 230, 0.42);
+  --danger: #ee7c8b;
+  --danger-soft: rgba(238, 124, 139, 0.14);
+  --danger-border: rgba(238, 124, 139, 0.36);
+  --notice-bg: rgba(240, 166, 184, 0.16);
+  --notice-border: rgba(232, 121, 167, 0.38);
+  --notice-text: #f0c2d0;
+  --hover-bg: #383e4a;
+  --disabled-bg: #242832;
+  --disabled-text: #5c6472;
+  --bottom-nav-bg: rgba(42, 46, 55, 0.94);
   --overlay-bg: rgba(9, 11, 14, 0.68);
-  --dialog-bg: #2b2f36;
-  --focus: rgba(255, 92, 154, 0.28);
+  --dialog-bg: #2a2e37;
+  --focus: rgba(232, 121, 167, 0.28);
   --shadow: 0 18px 52px rgba(0, 0, 0, 0.28);
   --nav-shadow: 0 18px 54px rgba(0, 0, 0, 0.4);
   --dialog-shadow: 0 28px 76px rgba(0, 0, 0, 0.48);
@@ -75,8 +77,10 @@
   --workout: #b8e7e0;
   --checked-day-bg: #ddf3ea;
   --checked-day-text: #1f3d34;
+  --checked-day-border: #bfe2d2;
   --workout-day-bg: #b8e7e0;
   --workout-day-text: #17443f;
+  --workout-day-border: #91cfc7;
   --today-day-bg: #ddf3ea;
   --today-day-text: #1f3d34;
   --today-border: #7cbfa8;
@@ -784,6 +788,7 @@ textarea:focus {
 
 .month-day.checked-day {
   background: var(--checked-day-bg);
+  border-color: var(--checked-day-border);
   color: var(--checked-day-text);
 }
 
@@ -794,6 +799,7 @@ textarea:focus {
 
 .month-day.workout-day {
   background: var(--workout-day-bg);
+  border-color: var(--workout-day-border);
   color: var(--workout-day-text);
 }
 
@@ -824,10 +830,15 @@ textarea:focus {
 .month-day.is-muted.checked-day,
 .month-day.is-muted.workout-day,
 .month-day.is-muted.today-day {
-  opacity: 0.72;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted-day-text);
+  opacity: 1;
 }
 
 .month-day.is-muted.selected-day {
+  background: var(--brand);
+  border-color: var(--brand);
   opacity: 1;
   color: var(--brand-on);
 }
@@ -1336,6 +1347,7 @@ textarea:focus {
 
 .calendar-day.checked-day {
   background: var(--checked-day-bg);
+  border-color: var(--checked-day-border);
   color: var(--checked-day-text);
 }
 
@@ -1346,6 +1358,7 @@ textarea:focus {
 
 .calendar-day.workout-day {
   background: var(--workout-day-bg);
+  border-color: var(--workout-day-border);
   color: var(--workout-day-text);
 }
 
@@ -1366,6 +1379,15 @@ textarea:focus {
   color: var(--muted-day-text);
 }
 
+.calendar-day.is-muted.checked-day,
+.calendar-day.is-muted.workout-day,
+.calendar-day.is-muted.today-day {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted-day-text);
+  opacity: 1;
+}
+
 .calendar-day.today-day {
   background: var(--today-day-bg);
   border-color: var(--today-border);
@@ -1381,6 +1403,12 @@ textarea:focus {
   border-color: var(--brand);
   color: var(--brand-on);
   box-shadow: none;
+}
+
+.calendar-day.is-muted.selected-day {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--brand-on);
 }
 
 .calendar-day.selected-day small {
